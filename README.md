@@ -9,3 +9,6 @@ This repository reproduces a workflow to predict land use with a combination of 
 - `lag.R` runs a lasso for feature selection and random forest for prediction
 
 ![](viz/protected_lines_redux.png)
+
+
+#### [Variable List](https://docs.google.com/spreadsheets/d/1N32jq1qFINVKTSFCJixLgSJDprpNQzP4Q-nVV60xw08/edit?usp=sharing)
