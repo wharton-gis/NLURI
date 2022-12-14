@@ -1,5 +1,4 @@
-# landuse
-#### a national land use regulatory index
+# National Land Use Regulatory Index
 
 This repository reproduces a workflow to predict land use with a combination of satellite imagery, administrative data, street topology. The imagery used in the model comes from Google Earth Engine, and [this](https://colab.research.google.com/drive/1-7TeNduO6VmV0bmN0bgeHnWZ_DEwMpqK?usp=sharing) script produces the files.  
 
