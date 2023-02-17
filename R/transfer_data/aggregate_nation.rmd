@@ -16,6 +16,8 @@ source(link_github('R/help.R'))
 
 #web_crs = st_crs('EPSG:3857')
 web_crs = st_crs(4326)
+
+msq2acre = 4046.8564224
 ```
 
 # IMPORT DATA
@@ -41,11 +43,23 @@ glimpse(final_blocks)
 
 ```{r county}
 
+good_cols = c(
+    "GEOID", "state_nm", "county_nm", "r_index", "source", "ALAND_ac", "hu19", "hu_dense"
+    )
+
+state_path = "C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/states/state_clip.shp"
+state_nms =
+    st_read(state_path) %>% st_drop_geometry() %>%
+        filter(as.numeric(STATEFP)<57) %>%
+        select(STATEFP, STUSPS) %>%
+        rename(state = STATEFP, state_nm = STUSPS)
+
 cnty = counties(year=2010) %>% st_drop_geometry() %>%
     transmute(
         county_fip = paste0(GEOID10),
         county_nm = NAME10
     )
+
 vars = c(
                 'B25024_001' # housing units in structure
             )
@@ -59,7 +73,19 @@ cnty_acs =
             output = 'wide'
     ) %>%
     mutate(
-
+        ALAND_ac = ALAND/msq2acre,
+        r_index = 0,
+        source = 'NA',
+        hu19 = B25024_001E,
+        hu_dense = hu19/ALAND_ac,
+        GEOID = paste0(GEOID),
+        county_nm = NAME.x,
+        state = substr(GEOID, 0, 2)
+    ) %>%
+    left_join(
+        .,
+        state_nms,
+        on='state'
     )
 
 ```
@@ -305,12 +331,16 @@ get_combine = function(names=combine_name, folder=combine_folder, fdate=date) {
     paste(., fdate, sep='_')
 }
 combine_path = get_combine()
-combine_full_path = get_combine(c('NLURI','full'))
+combine_full_path = get_combine(c('NLURI','bg'))
+state_path = get_combine(c('NLURI','state'))
 
 shp_path = '.shp' %>% paste0(combine_path, .)
 shp_full = '.shp' %>% paste0(combine_full_path, .)
 geojson_path = '.geojson' %>% paste0(combine_path, .)
 geojson_full = '.geojson' %>% paste0(combine_full_path, .)
+
+geojson_st_full = '.geojson' %>% paste0(state_path, .)
+
 st_write(
     combine_df %>%
         select(good_cols),
@@ -344,6 +374,14 @@ st_write(
         filter(state_nm == focus_state) %>%
         st_transform(web_crs),
     new_geojson_path,
+    append=FALSE
+)
+
+st_write(
+    cnty_acs %>%
+        select(good_cols)%>%
+        st_transform(web_crs),
+    geojson_st_full,
     append=FALSE
 )
 
@@ -462,7 +500,6 @@ length(pop_geoid)
 ## IMPORT BLOCKS
 ```{r st_blocks}
 
-msq2acre = 4046.8564224
 
 state_codes = fips_df$state_code %>% unique()
 
