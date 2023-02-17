@@ -1,0 +1,529 @@
+
+# INTRO
+```{r import}
+library(tidyverse)
+library(sf)
+library(tigris)
+library(tidycensus)
+library(glue)
+census_api_key("f16397dacea3353a0e221135c845724e872968be",install=TRUE,overwrite=TRUE)
+
+
+GITHUB_DIR = 'https://raw.githubusercontent.com/asrenninger/landuse/main/'
+link_github = function(url) paste0(GITHUB_DIR, url)
+### ADDING HELP.R FROM GITHUB
+source(link_github('R/help.R'))
+
+#web_crs = st_crs('EPSG:3857')
+web_crs = st_crs(4326)
+```
+
+# IMPORT DATA
+
+## BLOCK GROUPS
+```{r pull_nat_blocks}
+
+block_folder = "C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/pad/pad_pull/data"
+og_path = "national_blocks_simplify.shp" %>% paste(block_folder, ., sep='/')
+final_blocks =
+    st_read(og_path) %>%
+    st_as_sf() %>%
+    transmute(
+        GEOID = fix_geoid(format_geoid_col(GEOID)),
+        area_ac
+    )
+census_proj = st_crs(final_blocks)
+
+glimpse(final_blocks)
+
+```
+## COUNTY
+
+```{r county}
+
+cnty = counties(year=2010) %>% st_drop_geometry() %>%
+    transmute(
+        county_fip = paste0(GEOID10),
+        county_nm = NAME10
+    )
+vars = c(
+                'B25024_001' # housing units in structure
+            )
+cnty_acs =
+    get_acs(
+            geography = "county",
+            variables = vars,
+            geometry = TRUE,
+            year = 2019,
+            keep_geo_vars = TRUE,
+            output = 'wide'
+    ) %>%
+    mutate(
+
+    )
+
+```
+
+## MODEL RESULTS
+
+```{r data}
+
+obs_str = c("train", "test")
+results_df
+results_path = "C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/model result_32states_011023.csv"
+results_df = read.csv(results_path) %>%
+    mutate(
+        GEOID = format_geoid_col(GEOID),
+        cat = ifelse(
+            cat %in% obs_str,
+            'Observation',
+            ifelse(
+                cat %in% c('pred'),
+                'Prediction',
+                ifelse(
+                    cat %in% c('drop'),
+                    'NA',
+                    cat
+                )
+            )
+        )
+    )
+
+glimpse(results_df)
+
+pop_geoid = results_df$GEOID %>% unique()
+pop_in_bg = pop_geoid[pop_geoid %in% final_blocks$GEOID]
+pop_not_in_bg = pop_geoid[!(pop_geoid %in% final_blocks$GEOID)]
+
+length(pop_geoid)
+length(pop_in_bg)
+
+state_path = "C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/states/state_clip.shp"
+
+state =
+    st_read(state_path) %>%
+        st_transform(census_proj) %>%
+        filter(as.numeric(STATEFP)<57) %>%
+        select(STATEFP, STUSPS, geometry) %>%
+        rename(state = STATEFP, state_nm = STUSPS) %>%
+        group_by(state, state_nm) %>%
+        summarise() %>%
+    merge(
+        .,
+        results_df %>%
+            mutate(state = substr(GEOID, 1, 2)) %>%
+            filter(cat == "Observation") %>%
+            count(state) %>%
+            rename(observations = n),
+        on = 'state',
+        all.x=TRUE
+    ) %>%
+    mutate(
+        observations = ifelse(is.na(observations),0,observations),
+        observed = ifelse(observations>0, 'True', 'False'),
+        state_fip = state
+    )
+obs_states = state %>% filter(observations>0) %>% pull(state_fip)
+
+results_df %>% glimpse()
+results_df$cat %>% unique()
+
+state %>% st_write('C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/pad/pad_pull/data/state_outlines.shp', append=FALSE)
+
+state %>% plot()
+```
+
+## HOUSING
+
+```{r blocks}
+
+#census.vars.list = list("units_tot"= "B25001_001")
+#focus_vars = unlist(unname(census.vars.list))
+
+github_repo = "C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/wharton_gis_repo"
+hu_block_path = "data/raw_data/hu/acs_bg_hu_2019.csv" %>% paste(github_repo, ., sep='/')
+hu_df = read.csv(hu_block_path) %>%
+    mutate(
+        GEOID = format_geoid_col(GEOID)
+    )
+
+pop_geoid = hu_df$GEOID %>% unique()
+pop_in_bg = pop_geoid[pop_geoid %in% final_blocks$GEOID]
+
+length(pop_geoid)
+length(pop_in_bg)
+
+```
+
+## PAD
+
+```{r PAD}
+
+block_folder = "C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/pad/pad_pull/data"
+group_csv = "Nat_Group.csv" %>% paste(block_folder, ., sep='/')
+pad_df = read.csv(group_csv) %>%
+    mutate(
+        GEOID = format_geoid_col(GEOID)
+    )
+
+pop_geoid = pad_df$GEOID %>% unique()
+pop_in_bg = pop_geoid[pop_geoid %in% final_blocks$GEOID]
+
+length(pop_in_bg)
+length(pop_geoid)
+
+```
+
+# MERGE
+
+```{r join}
+
+acres2m2 = 4046.85642
+
+combine_df =
+    left_join(
+        final_blocks,
+        results_df %>% select(-X),
+        on = c('GEOID')
+    ) %>%
+    left_join(
+        .,
+        pad_df %>% select(-Block_Area, -Pct_PAD),
+        on='GEOID'
+    ) %>%
+    left_join(
+        .,
+        hu_df %>% select(GEOID, hu19),
+        on='GEOID'
+    ) %>%
+    mutate(
+        state_fip = substr(GEOID, 1, 2),
+        county_fip = substr(GEOID, 1,5)
+        ) %>%
+    left_join(
+        .,
+        state %>%
+            select(state_fip, state_nm) %>%
+            st_drop_geometry(),
+        on='state_fip'
+    ) %>%
+    left_join(
+        .,
+        cnty,
+        on='county_fip'
+    ) %>%
+    mutate(
+        hu_dense = hu19 / area_ac,
+        hu_dense = ifelse(
+            is.na(hu_dense),
+            0,
+            hu_dense
+        ),
+        Pct_PAD = ifelse(
+            ((PAD_Area/acres2m2) / area_ac) > 1,
+            1,
+            ((PAD_Area/acres2m2) / area_ac)
+        ),
+        ALAND_ac = area_ac,
+        low_dense = ifelse(
+            hu_dense <= 0.01,
+            "True",
+            "False"
+        ),
+        PAD = ifelse(
+            Pct_PAD >= .8,
+            "True",
+            "False"
+        ),
+        prediction = ifelse(
+            cat %in% c('Prediction'),
+            "True",
+            "False"
+        ),
+        observed = ifelse(
+            cat %in% c('Observation'),
+            "True",
+            "False"
+        ),
+        obs_state = ifelse(
+            state_fip %in% obs_states,
+            'True',
+            'False'
+        ),
+        source =
+            ifelse(
+                cat %in% c('Observation'),
+                'Observation',
+                ifelse(
+                    PAD %in% c('True'),
+                    'Protected Area',
+                    ifelse(
+                        low_dense %in% c('True'),
+                        'Low Density',
+                        ifelse(
+                            cat %in% c('Prediction'),
+                            'Prediction',
+                            ifelse(
+                                obs_state %in% c('False'),
+                                'NA',
+                                ifelse(
+                                    cat %in% c('drop', 'NA', 'NO_DATA'),
+                                    'NA',
+                                    'NA'
+                                )
+                            ))))
+            ),
+        r_index = case_when(
+            source == "Observation" ~ maxhd_macro,
+            source == "Prediction" ~ pred,
+            source %in% c('Low Density', 'Protected Area', 'NA', 'NO_DATA') ~ hu_dense
+        )
+    )
+combine_df[combine_df$source %in% c('NA'), 'r_index'] = NA
+#combine_df[
+#    (combine_df$source %in% c('Protected Area')and(obs_state %in% c('True'))), 'source'] = 'Observation'
+combine_df %>% glimpse()
+```
+
+
+# EXPORT
+```{r export}
+
+good_cols = c(
+    "GEOID", "state_nm", "county_nm", "r_index", "source", "ALAND_ac", "hu19", "hu_dense"
+    )
+
+combine_folder = 'C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/pad/pad_pull/data'
+#combine_folder = 'C:/Users/nelms/Wharton GIS Team Dropbox/Alexander Nelms/ESI-Wharton Freddie Project/National Dataset/Final_Versions'
+
+combine_name = 'national_landuse_restrictivess_index'
+date = '20230113'
+
+get_combine = function(names=combine_name, folder=combine_folder, fdate=date) {
+    paste(names, collapse = '_') %>%
+    paste(folder, ., sep = '/') %>%
+    paste(., fdate, sep='_')
+}
+combine_path = get_combine()
+combine_full_path = get_combine(c('NLURI','full'))
+
+shp_path = '.shp' %>% paste0(combine_path, .)
+shp_full = '.shp' %>% paste0(combine_full_path, .)
+geojson_path = '.geojson' %>% paste0(combine_path, .)
+geojson_full = '.geojson' %>% paste0(combine_full_path, .)
+st_write(
+    combine_df %>%
+        select(good_cols),
+    shp_path,
+    append=FALSE
+    )
+st_write(
+    combine_df,
+    shp_full,
+    append=FALSE
+    )
+#st_write(
+#    combine_df %>%
+#        select(good_cols) %>%
+#        st_transform(web_crs),
+#    geojson_path,
+#    append=FALSE
+#    )
+#st_write(
+#    combine_df %>% st_transform(web_crs),
+#    geojson_full,
+#    append=FALSE
+#    )
+
+focus_state = 'FL'
+new_geojson_path = glue::glue("C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/pad/pad_pull/data/compressed/{focus_state}_results_20230117.geojson")
+
+st_write(
+    combine_df %>%
+        select(good_cols) %>%
+        filter(state_nm == focus_state) %>%
+        st_transform(web_crs),
+    new_geojson_path,
+    append=FALSE
+)
+
+csv_path = '.csv' %>% paste0(combine_path, .)
+csv_full = '.csv' %>% paste0(combine_full_path, .)
+write.csv(
+    combine_df %>%
+        select(good_cols) %>%
+        st_drop_geometry(),
+    csv_path
+)
+write.csv(
+    combine_df %>%
+        st_drop_geometry(),
+    csv_full
+)
+
+```
+
+# OTHER
+## PLOT
+```{r plots}
+
+combine_df %>% st_drop_geometry() %>% count(source)
+glimpse(combine_df)
+
+combine_df %>% filter(Pct_PAD < 4) %>% st_drop_geometry() %>% pull(Pct_PAD) %>% hist()
+
+library(ggplot)
+library(ggpattern)
+
+ggplot() +
+    geom_sf(
+        data = combine_df %>%
+    filter(!(state_fip %in% c("02", "15"))) %>%
+    select(source),
+        aes(fill=source),
+        color=NA
+    ) +
+    geom_sf(
+        data = state %>% filter(!(state %in% c("02", "15"))) %>% filter(as.numeric(state)<57),
+        fill = NA,
+        color='black'
+    ) +
+    geom_sf(
+        data = state %>% filter(!(state %in% c("02", "15"))) %>% filter(observed == 'False'),
+        pattern = 'b',
+        fill = NA,
+        color='black'
+    )
+
+ggplot() +
+    geom_sf(data = state %>% filter(!(state %in% c("02", "15"))), aes(fill = observed))
+
+```
+
+## CONVERT
+```{r compress}
+
+compress_shp_path = "C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/pad/pad_pull/data/compressed/results_20230117.shp"
+focus_state = 'FL'
+new_geojson_path = glue::glue("C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/pad/pad_pull/data/compressed/{focus_state}_results_20230117.geojson")
+
+compress_shp = combine_df %>%
+        select(good_cols)
+st_write(
+    compress_shp %>%
+        filter(state_nm == focus_state) %>%
+        st_transform(web_crs),
+    new_geojson_path
+)
+
+```
+
+## PAD
+```{r pad}
+
+pad_path = "C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/pad/pad_pull/data/PAD.shp"
+
+## load all layers
+pad <-
+  st_read(pad_path) %>%
+  mutate(geometry = st_make_valid(geometry))
+
+pad_fix =
+    pad %>%
+    st_transform(census_proj) %>%
+    st_difference(
+        blocks,
+        .
+    )
+
+```
+
+## POP
+```{r density}
+
+github_repo = "C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/wharton_gis_repo"
+pop_path = "data/raw_data/pop_change/bg_pop_change.csv" %>% paste(github_repo, ., sep='/')
+pop_df = read.csv(pop_path) %>%
+    transmute(
+        GEOID = format_geoid_col(GEOID),
+        pop19 = pop19
+    )
+
+glimpse(pop_df)
+
+pop_geoid = pop_df$GEOID %>% unique()
+pop_in_bg = pop_geoid[pop_geoid %in% final_blocks$GEOID]
+
+length(pop_in_bg)
+length(pop_geoid)
+
+```
+
+## IMPORT BLOCKS
+```{r st_blocks}
+
+msq2acre = 4046.8564224
+
+state_codes = fips_df$state_code %>% unique()
+
+state = "01"
+blocks =
+        block_groups(
+            state = "01",
+            cb = FALSE,
+            class = 'sf',
+            year=2019
+            ) %>%
+        transmute(
+            GEOID = format_geoid_col(GEOID),
+            state = STATEFP,
+            area_m2 = ALAND,
+            area_ac = area_m2/msq2acre
+            )
+census_proj = st_crs(blocks)
+
+blocks = blocks %>% filter(state != "01")
+
+get_blocks = function(state){
+    #if (state == "02"){
+    #    state_proj = crsuggest::crs_sf %>%
+    #        filter(crs_code == "3338") %>%
+    #        pull(crs_proj4)
+    #} else if (state=="11"){
+    #    state_proj = get_crs("10")
+    #} else{
+    #    state_proj = get_crs(get_state_nm(state))
+    #}
+    state_blocks =
+        block_groups(
+            state = state,
+            cb = FALSE,
+            class = 'sf',
+            year = 2019
+            ) %>%
+        transmute(
+            GEOID = format_geoid_col(GEOID),
+            state = STATEFP,
+            area_m2 = ALAND,
+            area_ac = area_m2/msq2acre
+            )
+    return(state_blocks)
+}
+
+for(state in state_codes){
+    print(state)
+    focus_state = get_blocks(state) %>%
+        st_transform(census_proj)
+    blocks = rbind(
+        blocks,
+        focus_state
+    )
+}
+
+
+block_folder = "C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/pad/pad_pull/data"
+shp_block_path = "national_blocks_raw.shp" %>% paste(block_folder, ., sep='/')
+#blocks %>%
+#    st_write(shp_block_path)
+
+```
