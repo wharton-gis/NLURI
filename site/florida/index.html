@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>NLURI Florida</title>
+
+        <!-- Leaflet's default styles-->
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css" integrity="sha512-hoalWLoI8r4UszCkZ5kL8vayOGVae1oxXe/2A4AO6J9+580uKHDO3JdHb7NzwwzK5xr/Fs0W40kiNHxM9vyTtQ==" crossorigin=""/>
+        
+        <!-- My CSS files-->
+        <link rel="stylesheet" href="./styles.css">
+    </head>
+
+    <body>
+
+        <div class="container-fluid">
+            <div id="leftpanel">
+                <div id="intro">
+                    NLURI - Florida<br> 
+                </div>
+                <div id="left">
+                    <select name="overlay" id="overlay">
+                        <option value="off"> --- </option>
+                        <option value="r_index">r_index</option>
+                        <option value="source">source</option>
+
+                    </select>
+                </div>
+
+            </div>
+                
+              
+        
+                
+            <div id="florida-map"></div>
+       </div>
+
+    </body>
+    <script src="https://unpkg.com/leaflet@1.9.1/dist/leaflet.js"  integrity="sha256-NDI0K41gVbWqfkkaHj15IzU7PtMoelkzyKp8TOaFQ3s="  crossorigin=""></script>
+
+    <!-- My Project JS modules-->
+    <script type="module" src="js/main.js"></script>
+    <script src="https://unpkg.com/papaparse@5.3.2/papaparse.min.js"></script>
+</html>
