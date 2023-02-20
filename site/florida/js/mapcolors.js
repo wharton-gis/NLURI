@@ -34,9 +34,9 @@ function source_cols(p){
     return 'blue';
 }
 
-function source_style(feature) {
+function source_style(layer) {
     return {
-        fillColor: source_cols(feature.properties.source),        
+        fillColor: source_cols(layer.source),        
         weight: 2,
         opacity: 1,
         color: 'NA',  //Outline color
