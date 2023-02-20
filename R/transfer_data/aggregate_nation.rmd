@@ -332,7 +332,7 @@ get_combine = function(names=combine_name, folder=combine_folder, fdate=date) {
 }
 combine_path = get_combine()
 combine_full_path = get_combine(c('NLURI','bg'))
-state_path = get_combine(c('NLURI','state'))
+state_path = get_combine(c('NLURI','county'))
 
 shp_path = '.shp' %>% paste0(combine_path, .)
 shp_full = '.shp' %>% paste0(combine_full_path, .)
