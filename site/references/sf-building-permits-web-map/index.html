@@ -1,0 +1,33 @@
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SF Permits & Metrics</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- The map -->
+  <div class="map" id="map">
+    Map
+    <div id="buttons">
+
+    </div>
+  </div>
+
+  <!--======== SCRIPTS ========-->
+  <!-- Leaflet JS library -->
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+
+  <!-- Turf (for geoprocessing) -->
+  <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
+
+  <script src="js/tools.js"></script>
+  <script src="data/colorbrewer.js"></script>
+  <script src="data/valueBins.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+{
+  "type": "module",
+  "dependencies": {
+    "http-server": "^14.1.0",
+    "webpack": "^5.72.0",
+    "webpack-cli": "^4.9.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.6.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "localhost": "^0.4.0"
+  },
+  "eslintConfig": {
+    "extends": "airbnb",
+    "globals": {
+      "L": "readonly",
+      "_": "readonly",
+      "document": "readonly",
+      "fetch": "readonly",
+      "htmlToElement": "readonly",
+      "htmlToElements": "readonly"
+    },
+    "rules": {
+      "arrow-parens": "off",
+      "no-console": "off",
+      "no-plusplus": "off",
+      "no-multiple-empty-lines": "off",
+      "no-multi-spaces": "off",
+      "prefer-const": "off",
+      "no-restricted-syntax": [
+        "error",
+        {
+          "selector": "ForInStatement",
+          "message": "for..in loops iterate over the entire prototype chain, which is virtually never what you want. Use Object.{keys,values,entries}, and iterate over the resulting array."
+        },
+        {
+          "selector": "LabeledStatement",
+          "message": "Labels are a form of GOTO; using them makes code confusing and hard to maintain and understand."
+        },
+        {
+          "selector": "WithStatement",
+          "message": "`with` is disallowed in strict mode because it makes code impossible to predict and optimize."
+        }
+      ]
+    }
+  },
+  "name": "sf-building-permits-web-map",
+  "description": "***MUSA 650 & CPLN 680 Final Project***",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nelmsal/sf-building-permits-web-map.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nelmsal/sf-building-permits-web-map/issues"
+  },
+  "homepage": "https://github.com/nelmsal/sf-building-permits-web-map#readme"
+}
