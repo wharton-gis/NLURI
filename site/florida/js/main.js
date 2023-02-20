@@ -5,7 +5,7 @@ let Map = initializeMap();
 polygonLayerfun(Map);
 
 function downloadInv() {
-    const fpath = '../../../data/national_results/FL_bg_20230117.geojson';
+    const fpath = '../../data/national_results/FL_bg_20230117.geojson';
     fetch(fpath)
     .then(resp => resp.json())
     .then(data => {
