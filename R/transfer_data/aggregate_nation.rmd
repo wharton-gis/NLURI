@@ -8,6 +8,7 @@ library(tidycensus)
 library(glue)
 census_api_key("f16397dacea3353a0e221135c845724e872968be",install=TRUE,overwrite=TRUE)
 
+options(digits=22)
 
 GITHUB_DIR = 'https://raw.githubusercontent.com/asrenninger/landuse/main/'
 link_github = function(url) paste0(GITHUB_DIR, url)
@@ -16,7 +17,6 @@ source(link_github('R/help.R'))
 
 #web_crs = st_crs('EPSG:3857')
 web_crs = st_crs(4326)
-
 msq2acre = 4046.8564224
 ```
 
@@ -239,6 +239,7 @@ combine_df =
         on='county_fip'
     ) %>%
     mutate(
+        GEO_ID = paste0("1500000US", GEOID),
         hu_dense = hu19 / area_ac,
         hu_dense = ifelse(
             is.na(hu_dense),
@@ -316,14 +317,14 @@ combine_df %>% glimpse()
 ```{r export}
 
 good_cols = c(
-    "GEOID", "state_nm", "county_nm", "r_index", "source", "ALAND_ac", "hu19", "hu_dense"
+    "GEO_ID", "GEOID", "state_nm", "county_nm", "r_index", "source", "ALAND_ac", "hu19", "hu_dense"
     )
 
 combine_folder = 'C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/pad/pad_pull/data'
 #combine_folder = 'C:/Users/nelms/Wharton GIS Team Dropbox/Alexander Nelms/ESI-Wharton Freddie Project/National Dataset/Final_Versions'
 
-combine_name = 'national_landuse_restrictivess_index'
-date = '20230113'
+combine_name = 'national_landuse_restrictiveness_index'
+date = '20230222'
 
 get_combine = function(names=combine_name, folder=combine_folder, fdate=date) {
     paste(names, collapse = '_') %>%
@@ -391,12 +392,14 @@ write.csv(
     combine_df %>%
         select(good_cols) %>%
         st_drop_geometry(),
-    csv_path
+    csv_path,
+    row.names=FALSE
 )
 write.csv(
     combine_df %>%
         st_drop_geometry(),
-    csv_full
+    csv_full,
+    row.names=FALSE
 )
 
 ```
@@ -453,6 +456,9 @@ st_write(
         st_transform(web_crs),
     new_geojson_path
 )
+
+('01', '15', '60', '64', '66', '68', '69', '70', '74', '78')
+
 
 ```
 
@@ -562,5 +568,64 @@ block_folder = "C:/Users/nelms/OneDrive - PennO365/Penn/Wharton/NLURI/data/pad/p
 shp_block_path = "national_blocks_raw.shp" %>% paste(block_folder, ., sep='/')
 #blocks %>%
 #    st_write(shp_block_path)
+
+```
+
+
+```{r }
+
+p1990 = "C:/Users/nelms/Downloads/R13309996_SL140.csv"
+df1990 = read.csv(p1990)
+
+p2000 = "C:/Users/nelms/Downloads/R13309999_SL140.csv"
+df2000 = read.csv(p2000)
+
+fgdb <- "C:/Users/nelms/OneDrive - PennO365/Penn/2023 Spring/CPLN 600/Garrett_Road/Data/Raw_Data/BaseData.gdb"
+ptrcts = "TRCT2000_DelCo"
+trcts = st_read(fgdb, layer = ptrcts)
+
+trcts_demo = merge(
+    trcts %>% transmute(GEOID = as.character(GEOID10)),
+    df1990 %>%
+        transmute(
+            GEOID = as.character(Geo_FIPS),
+            white90 = SE_T012_003,
+            pop90 = SE_T012_001,
+            pctnwhite90 = 1- white90/pop90
+            ),
+    on='GEOID'
+) %>%
+merge(
+    .,
+    df2000 %>%
+        transmute(
+            GEOID = as.character(Geo_FIPS),
+            white00 = SE_T013_003,
+            pop00 = SE_T013_001,
+            pctnwhite00 = 1- white00/pop00
+            ),
+    on='GEOID'
+)
+
+st_write(
+    trcts_demo,
+    "C:/Users/nelms/OneDrive - PennO365/Penn/2023 Spring/CPLN 600/GR_personal/trct10_demo.shp",
+    append=FALSE
+)
+```
+
+```{r dem}
+
+p10 = "C:/Users/nelms/OneDrive - PennO365/Penn/2023 Spring/CPLN 600/GR_personal/trct10_demo.shp"
+tdn = st_read(p10)
+
+tdn %>% st_drop_geometry() %>%
+    group_by(up) %>%
+    summarize(
+        pctnonwhite_90 = 1 - sum(white90) / sum(pop90),
+
+        pctnonwhite_00 = 1 - sum(white00) / sum(pop00),
+        pop_change_0090 = (sum(pop00) - sum(pop90)) / sum(pop90)
+    )
 
 ```
